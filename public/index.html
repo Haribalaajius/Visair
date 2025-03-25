@@ -1,0 +1,922 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite based air quality map</title>
+
+    <!-- Leaflet CSS and JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        #map { height: 1050px; }
+
+        /* Custom popup styling */
+        .custom-popup {
+            background-color: #a1ddef;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            width: 250px;
+        }
+
+        .custom-popup h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #000000;
+        }
+
+        .custom-popup .data {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .custom-popup .location {
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #777;
+        }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background: #0078a8;
+            color: #333;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+       }
+        .leaflet-container a.leaflet-popup-close-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            border: none;
+            text-align: center;
+            width: 24px;
+            height: 24px;
+            font: 16px/24px Tahoma, Verdana, sans-serif;
+            color: #000000;
+            text-decoration: none;
+            background: transparent;
+        }
+
+        /* Cut button styling */
+        .close-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            color: #742323;
+        }
+
+
+        /* New scale for environmental gases similar to the color-coded image */
+        .legend {
+            display: flex;
+            justify-content: flex-start;
+            gap: 20px;
+            padding: 10px;
+            margin-top: -42px;
+            margin-right: 1450px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            border-radius: 5px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            width: 115px;
+            height: 5px;
+        }
+
+        
+
+/* Container for heading and search box to align them in the same row */
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+/* Left-aligned heading style */
+/* h1 {
+    margin: 0;
+    font-size: 24px;
+    text-align: left;
+} */
+
+/* Right-aligned search box */
+.search-box {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Search input field */
+#location-search {
+    padding: 15px 75px;
+    font-size: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 250px; /* Adjust width as needed */
+    margin-right: 10px;
+    margin-top: 10px;
+}
+
+/* Search button */
+button {
+    padding: 15px 50px;
+    font-size: 20px;
+    background-color: #007bff;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Align the header to the top-left corner */
+.header-container {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 100%;
+}
+
+
+/* Pollutant button styling */
+/* .pollutant-buttons {
+    text-align: center;
+    margin: 20px;
+}
+
+.pollutant-btn {
+    padding: 15px 25px;
+    font-size: 16px;
+    margin: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.so2-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.no2-btn {
+    background-color: #ffeb3b;
+    color: black;
+}
+
+.ch4-btn {
+    background-color: #ff9800;
+    color: white;
+}
+
+.co2-btn {
+    background-color: #f44336;
+    color: white;
+} */
+
+/* Popup container */
+.popup {
+    position: fixed;
+    top: 95px;
+    left: 480px;
+    margin-left: 189px;
+    margin-top: 650px;
+    width: 15%;
+    height: 15%;
+    background-color: rgba(20, 20, 16, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000; /* Increased z-index to bring popup to the front */
+    
+}
+
+.popup-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 75%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    max-height: 100px;
+    
+}
+
+.close-btn {
+    float: right;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 14px;
+}
+
+
+.hidden {
+    display: none;
+}
+
+/* Styling for the content inside the popup */
+#popup-title {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+#popup-text {
+    font-size: 14px;
+    color: #555;
+}
+
+.popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Popup content */
+        .popup-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+            text-align: center;
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none;
+        }
+
+        /* Close button */
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Title styling */
+        #popup-title {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        /* Text styling */
+        #popup-text {
+            font-size: 16px;
+        }   
+        
+    </style>
+</head>
+<body>
+
+    <h1>Satellite based air quality map</h1>
+    <div id="map"></div>
+    <div class="search-box">
+        <input type="text" id="location-search" placeholder="Search location..." />
+        <button onclick="searchLocation()">Search</button>
+    </div>
+
+
+    
+        <!-- Air quality level buttons -->
+        <!-- <div class="pollutant-buttons">
+            <button class="pollutant-btn so2-btn" onclick="showPopup('so2')">SO<sub>2</button>
+            <button class="pollutant-btn no2-btn" onclick="showPopup('no2')">NO<sub>2</button>
+            <button class="pollutant-btn ch4-btn" onclick="showPopup('ch4')">CH<sub>4</button>
+            <button class="pollutant-btn co2-btn" onclick="showPopup('co2')">CO<sub>2</button>
+        </div> -->
+    
+        <!-- Popup section that will display information -->
+        <!-- <div id="popup" class="popup hidden">
+            <div class="popup-content">
+                <span class="close-btn" onclick="closePopup()">&times;</span>
+                <h3 id="popup-title">Title</h3>
+                <p id="popup-text">This is the description of the pollutant.</p>
+            </div>
+        </div> -->
+
+        <!-- <div id="popup" class="popup hidden">
+            <div class="popup-content">
+                <span class="close-btn" onclick="closePopup()">×</span>
+                <h3 id="popup-title">NO<sub>2 Levels</h3>
+                <p id="popup-text">NO<sub>2 is harmful above certain levels and can lead to respiratory problems.</p>
+            </div>
+        
+        
+            <div class="popup-content">
+                <span class="close-btn" onclick="closePopup()">×</span>
+                <h3 id="popup-title">SO<sub>2 Levels</h3>
+                <p id="popup-text">SO<sub>2 is essential but high concentrations may harm the environment.</p>
+            </div>
+        
+        
+            <div class="popup-content">
+                <span class="close-btn" onclick="closePopup()">×</span>
+                <h3 id="popup-title">CH<sub>4 Levels</h3>
+                <p id="popup-text">CH<sub>4 is a potent greenhouse gas. Control is critical for climate change.</p>
+            </div>
+      
+        
+            <div class="popup-content">
+                <span class="close-btn" onclick="closePopup()">×</span>
+                <h3 id="popup-title">CO<sub>2 Levels</h3>
+                <p id="popup-text">CO concentration should be under 400 ppm to avoid environmental damage.</p>
+            </div>
+        </div> -->
+        <!-- <div id="popup" class="popup hidden">
+            <div class="popup-content">
+                <span class="close-btn" onclick="closePopup()">&times;</span>
+                <h3 id="popup-title">Title</h3>
+                <p id="popup-text">Description goes here.</p>
+            </div>
+        </div> -->
+    
+        <!-- Buttons to trigger the popup -->
+        <!-- <button onclick="showPopup('NO<sub>2</sub> Levels', 'NO<sub>2</sub> is harmful above certain levels and can lead to respiratory problems.')">Show NO<sub>2</sub> Popup</button>
+        <button onclick="showPopup('SO<sub>2</sub> Levels', 'SO<sub>2</sub> is essential but high concentrations may harm the environment.')">Show SO<sub>2</sub> Popup</button>
+        <button onclick="showPopup('CH<sub>4</sub> Levels', 'CH<sub>4</sub> is a potent greenhouse gas. Control is critical for climate change.')">Show CH<sub>4</sub> Popup</button>
+        <button onclick="showPopup('CO<sub>2</sub> Levels', 'CO<sub>2</sub> concentration should be under 400 ppm to avoid environmental damage.')">Show CO<sub>2</sub> Popup</button>
+     -->
+ </body>
+
+
+    <script>
+
+     
+
+        // Initialize the map centered on Tamil Nadu
+        var map = L.map('map').setView([12.9716, 77.5946], 7); // Center on Bengaluru
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        // Custom NO₂ icon for markers
+        var no2Icon = L.icon({
+            iconUrl: 'no2-removebg-preview[1].png', // Use the path to your uploaded icon
+            iconSize: [40, 40], // Size of the icon (adjust as needed)
+            iconAnchor: [20, 40], // Anchor the icon's point to the map location
+            popupAnchor: [0, -40] // Popup appears just above the icon
+        });
+
+
+        // Popup content with close button
+        function createPopupContent(location, no2, so2) {
+            return `
+                <div class="custom-popup">
+                    <div class="close-btn" onclick="closePopup()">×</div>
+                    <h3>${location}</h3>
+                    <div class="data">
+                        <p><strong>NO₂:</strong> ${no2} µg/m³</p>
+                        <p><strong>SO₂:</strong> ${so2} µg/m³</p>
+                    </div>
+                    <div class="location">${location}</div>
+                </div>
+            `;
+        }
+
+        // Cut button functionality to close the popup
+        function closePopup() {
+            map.closePopup();
+        }
+
+        // Function to add a marker with custom icon and popup
+        function addMarker(lat, lng, location, no2, so2) {
+            L.marker([lat, lng], { icon: no2Icon }).addTo(map)
+                .bindPopup(createPopupContent(location, no2, so2));
+        }
+
+        // India Hotspots
+        addMarker(28.7041, 77.1025, "Delhi-NCR, India", 80, 45); // Delhi-NCR
+        addMarker(24.6884, 83.4644, "Sonbhadra, India", 70, 35); // Sonbhadra (UP) and Singrauli (MP)
+        addMarker(20.9504, 85.0992, "Talcher-Angul, Odisha", 60, 40); // Talcher-Angul
+
+        // China Hotspots
+        addMarker(39.9042, 116.4074, "Beijing, China", 90, 50); // Beijing
+        addMarker(31.2304, 121.4737, "Shanghai, China", 85, 47); // Shanghai
+
+        // Arab World Hotspots
+        addMarker(25.276987, 55.296249, "Dubai, UAE", 78, 40); // Dubai
+        addMarker(35.6892, 51.3890, "Tehran, Iran", 95, 55); // Tehran
+
+        // EU Hotspots
+        addMarker(51.5074, -0.1278, "London, UK", 65, 38); // London
+        addMarker(48.8566, 2.3522, "Paris, France", 70, 42); // Paris
+
+        // US Hotspots
+        addMarker(40.7128, -74.0060, "New York City, US", 75, 43); // New York City
+        addMarker(34.0522, -118.2437, "Los Angeles, US", 80, 45); // Los Angeles
+
+        // DR Congo Hotspots
+        addMarker(-4.441931, 15.266293, "Kinshasa, DR Congo", 85, 47); // Kinshasa
+        addMarker(-6.308, 20.401, "Congo, Angola border", 75, 40); // Congo/Angola
+
+        // Santiago de Chile Hotspot (Transport-related emission)
+        addMarker(-33.4489, -70.6693, "Santiago de Chile, Chile", 65, 35); // Santiago de Chile
+        
+        // Marker for Salem with custom NO₂ icon
+        L.marker([11.6643, 78.1460], { icon: no2Icon }).addTo(map)
+            .bindPopup(createPopupContent("Salem", 30, 20));
+
+        // Marker for Coimbatore with custom NO₂ icon
+        L.marker([11.0168, 76.9558], { icon: no2Icon }).addTo(map)
+            .bindPopup(createPopupContent("Coimbatore", 40, 25));
+
+        // Marker for Bengaluru with custom NO₂ icon
+        L.marker([12.9716, 77.5946], { icon: no2Icon }).addTo(map)
+            .bindPopup(createPopupContent("Bengaluru", 50, 30));
+
+        // Marker for Chennai with custom NO₂ icon
+        L.marker([13.0827, 80.2707], { icon: no2Icon }).addTo(map)
+            .bindPopup(createPopupContent("Chennai", 60, 35));
+
+
+
+             // Popup content with environmental details
+        function createPopupContent(location, no2, so2, co2, ch4) {
+            return `
+                <div class="custom-popup">
+                    <h3>${location}</h3>
+                    <div class="data">
+                        <p><strong>NO₂:</strong> ${no2} µg/m³</p>
+                        <p><strong>SO₂:</strong> ${so2} µg/m³</p>
+                        <p><strong>CO₂:</strong> ${co2} ppm</p>
+                        <p><strong>CH₄:</strong> ${ch4} ppm</p>
+                    </div>
+                    <p>Note: Levels beyond the standard limits can lead to environmental and health risks.</p>
+                </div>
+            `;
+        }
+
+        // Function to add marker with custom icon and popup
+        function addMarker(lat, lng, location, no2, so2, co2, ch4) {
+            L.marker([lat, lng], { icon: no2Icon }).addTo(map)
+                .bindPopup(createPopupContent(location, no2, so2, co2, ch4));
+        }
+
+        // Example: Adding a few markers with data
+        addMarker(28.7041, 77.1025, "Delhi-NCR, India", 80, 45, 420, 1.9); // Delhi-NCR
+        addMarker(24.6884, 83.4644, "Sonbhadra, India", 70, 35, 410, 1.85); // Sonbhadra
+        addMarker(31.2304, 121.4737, "Shanghai, China", 85, 47, 425, 2.1); // Shanghai
+
+        // Search and zoom functionality
+        function searchLocation() {
+            var query = document.getElementById("location-search").value.toLowerCase();
+            var locations = {
+                'salem': [11.6643, 78.1460],
+                'coimbatore': [11.0168, 76.9558],
+                'bengaluru': [12.9716, 77.5946],
+                'chennai': [13.0827, 80.2707],
+                'chandrapur': [19.9506, 79.2961],
+                'delhi': [28.7041, 77.1025],
+                'koradi': [21.237804, 79.112511],
+                'mumbai': [19.0760, 72.8777],
+                'nashik': [19.9975, 73.7898],
+                'akola': [20.7042, 77.0082],
+                'bhusawal': [21.0455, 75.8023],
+                'parli': [18.8505, 76.5334],
+                'russia': [61.5240, 105.3188],
+                'south africa': [-30.5595, 22.9375],
+                'iran': [32.4279, 53.6880],
+                'saudi Arabia': [23.8859, 45.0792],
+                'india': [20.5937, 78.9629],
+                'mexico': [23.6345, -102.5528],
+                'united Arab Emirates': [23.4241, 53.8478],
+                'turkey': [38.9637, 35.2433],
+                'serbia': [44.0165, 21.0059],
+                'gujarat': [22.2587, 71.1924],
+                'odisha': [20.9517, 85.0985],
+                'chhattisgarh': [21.2787, 81.8661],
+                'jharkhand': [23.6102, 85.2799],
+                'karnataka': [15.3173, 75.7139],
+                'maharashtra': [19.7515, 75.7139],
+                'andhra pradesh': [15.9129, 79.7400],
+                'rajasthan': [27.0238, 74.2179],
+                'west bengal': [22.9868, 87.8550],
+                'tamil nadu': [11.1271, 78.6569],
+                'karumathampatti': [11.1595, 77.1461],
+                'somanur': [11.0481, 77.2073]
+
+
+            };
+
+            if (locations[query]) {
+                var latLng = locations[query];
+                map.setView(latLng, 13); // Zoom to searched location
+                L.circle(latLng, { radius: 1000 }).addTo(map); // Add radius circle
+            } else {
+                alert("Location not found");
+            }
+        }
+
+          // Function to show popup based on the pollutant clicked
+           function showPopup(pollutant) {
+            const popup = document.getElementById('popup');
+            const popupTitle = document.getElementById('popup-title');
+            const popupText = document.getElementById('popup-text');
+
+           switch (pollutant) {
+           case 'so2':
+           popupTitle.textContent = "SO2 Levels";
+           popupText.textContent = "SO2 is present in the environment at safe levels up to 78%. Beyond this level, it can have harmful effects.";
+           break;
+            case 'no2':
+            popupTitle.textContent = "NO2 Levels";
+            popupText.textContent = "NO2 is harmful above certain levels and can lead to respiratory problems. The safe limit is up to 100 ppm.";
+            break;
+            case 'ch4':
+            popupTitle.textContent = "CH4 Levels";
+            popupText.textContent = "CH4 levels are generally low but are a potent greenhouse gas. Safe levels should not exceed 5 ppm.";
+            break;
+            case 'co2':
+            popupTitle.textContent = "CO2 Levels";
+            popupText.textContent = "CO2 concentration should be under 400 ppm. Higher levels can contribute to global warming and affect air quality.";
+            break;
+            }
+
+            popup.classList.remove('hidden');
+           }
+
+          // Function to close the popup
+          function closePopup() {
+          const popup = document.getElementById('popup');
+          popup.classList.add('hidden');
+          }
+          // Function to show popup based on the pollutant clicked
+function showPopup(pollutant) {
+    const popup = document.getElementById('popup');
+    const popupTitle = document.getElementById('popup-title');
+    const popupText = document.getElementById('popup-text');
+
+    switch (pollutant) {
+        case 'so2':
+            popupTitle.textContent = "SO2 Levels";
+            popupText.textContent = "SO2 is essential but high concentrations may harm the environment.";
+            break;
+        case 'no2':
+            popupTitle.textContent = "NO2 Levels";
+            popupText.textContent = "NO2 is harmful above certain levels and can lead to respiratory problems.";
+            break;
+        case 'ch4':
+            popupTitle.textContent = "CH4 Levels";
+            popupText.textContent = "CH4 is a potent greenhouse gas. Control is critical for climate change.";
+            break;
+        case 'co2':
+            popupTitle.textContent = "CO2 Levels";
+            popupText.textContent = "CO2 concentration should be under 400 ppm to avoid environmental damage.";
+            break;
+    }
+
+    popup.classList.remove('hidden');
+}
+
+// Function to close the popup
+function closePopup() {
+    const popup = document.getElementById('popup');
+    popup.classList.add('hidden');
+}
+
+   
+
+
+
+
+
+
+
+
+
+const co2Hotspots = [
+    { state: "Gujarat", lat: 22.2587, lng: 71.1924, CO2: 120 },
+    { state: "Odisha", lat: 20.9517, lng: 85.0985, CO2: 115 },
+    { state: "Chhattisgarh", lat: 21.2787, lng: 81.8661, CO2: 130 },
+    { state: "Jharkhand", lat: 23.6102, lng: 85.2799, CO2: 125 },
+    { state: "Karnataka", lat: 15.3173, lng: 75.7139, CO2: 110 },
+    { state: "Maharashtra", lat: 19.7515, lng: 75.7139, CO2: 105 },
+    { state: "Andhra Pradesh", lat: 15.9129, lng: 79.7400, CO2: 108 },
+    { state: "Rajasthan", lat: 27.0238, lng: 74.2179, CO2: 113 },
+    { state: "West Bengal", lat: 22.9868, lng: 87.8550, CO2: 119 },
+    { state: "Tamil Nadu", lat: 11.1271, lng: 78.6569, CO2: 128 },
+    { state: "Tamil Nadu", city: "Karumathampatti", lat: 11.1595, lng: 77.1461, CO2: 130 },
+    { state: "Tamil Nadu", city: "Somanur", lat: 11.0481, lng: 77.2073, CO2: 125 }
+
+];
+
+const co2Icon = L.icon({
+    iconUrl: 'CO2TRI-removebg-preview.png',  // Update with the correct path
+    iconSize: [38, 38], // Size of the icon
+    iconAnchor: [22, 94], // Point of the icon which will correspond to marker's location
+    popupAnchor: [-3, -76] // Point from which the popup should open relative to the iconAnchor
+});
+
+co2Hotspots.forEach(function(hotspot) {
+    const popupContent = `
+        <div>
+            <h3>${hotspot.state}, ${hotspot.city}</h3>
+            <p>CO₂: ${hotspot.CO2} ppm</p>
+            <p>Note: Elevated CO₂ levels can contribute to climate change and air quality issues.</p>
+        </div>`;
+    
+    L.marker([hotspot.lat, hotspot.lng], { icon: co2Icon })
+        .addTo(map)
+        .bindPopup(popupContent);
+});
+
+// const map = L.map('map').setView([20.5937, 78.9629], 5);  // Set zoom level to display all states
+
+// L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+//     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+// }).addTo(map);
+
+
+const so2Hotspots = [
+    { country: "Russia", lat: 61.5240, lng: 105.3188, SO2: 90 },
+    { country: "South Africa", lat: -30.5595, lng: 22.9375, SO2: 85 },
+    { country: "Iran", lat: 32.4279, lng: 53.6880, SO2: 100 },
+    { country: "Saudi Arabia", lat: 23.8859, lng: 45.0792, SO2: 95 },
+    { country: "India", lat: 20.5937, lng: 78.9629, SO2: 80 },
+    { country: "Mexico", lat: 23.6345, lng: -102.5528, SO2: 92 },
+    { country: "United Arab Emirates", lat: 23.4241, lng: 53.8478, SO2: 88 },
+    { country: "Turkey", lat: 38.9637, lng: 35.2433, SO2: 76 },
+    { country: "Serbia", lat: 44.0165, lng: 21.0059, SO2: 82 },
+    { city: "Chandrapur", state: "Maharashtra", lat: 19.9506, lng: 79.2961, SO2: 110 },
+    { city: "Koradi", state: "Maharashtra", lat: 21.2357, lng: 79.0823, SO2: 105 },
+    { city: "Mumbai", state: "Maharashtra", lat: 19.0760, lng: 72.8777, SO2: 95 },
+    { city: "Nashik", state: "Maharashtra", lat: 19.9975, lng: 73.7898, SO2: 100 },
+    { city: "Akola", state: "Maharashtra", lat: 20.7042, lng: 77.0082, SO2: 90 },
+    { city: "Bhusawal", state: "Maharashtra", lat: 21.0455, lng: 75.8023, SO2: 85 },
+    { city: "Parli", state: "Maharashtra", lat: 18.8505, lng: 76.5334, SO2: 102 },
+
+    
+    { city: "Kutch", state: "Gujarat", lat: 23.7337, lng: 69.8597, SO2: 120 },
+    { city: "Mundra", state: "Gujarat", lat: 22.8399, lng: 69.7217, SO2: 118 },
+    { city: "Surat", state: "Gujarat", lat: 21.1702, lng: 72.8311, SO2: 115 },
+    { city: "Gandhi Nagar", state: "Gujarat", lat: 23.2156, lng: 72.6369, SO2: 112 },
+    { city: "Kheda", state: "Gujarat", lat: 22.7500, lng: 72.6833, SO2: 98 },
+    { city: "Hazira", state: "Gujarat", lat: 21.1177, lng: 72.7385, SO2: 114 }
+    ];
+   
+
+const so2Icon = L.icon({
+    iconUrl: 'Screenshot_2024-09-19_095857-removebg-preview.png',  // Update with the correct path if available
+    iconSize: [38, 38],
+    iconAnchor: [22, 94],
+    popupAnchor: [-3, -76]
+});
+
+
+
+so2Hotspots.forEach(function(hotspot) {
+    const popupContent = `
+        <div>
+            <h3>${hotspot.country}, ${hotspot.state}</h3>
+            <p>SO₂: ${hotspot.SO2} µg/m³</p>
+            <p>CO₂: undefined ppm</p>
+            <p>CH4: undefined ppm</p>
+            <p>Note: Levels beyond the standard limits can lead to environmental and health risks.</p>
+        </div>`;
+    
+    L.marker([hotspot.lat, hotspot.lng], { icon: so2Icon })
+        .addTo(map)
+        .bindPopup(popupContent);
+});
+
+// const map = L.map('map').setView([20.5937, 78.9629], 2);  // Adjust zoom level to show global view
+
+// L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+//     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+// }).addTo(map);
+
+
+const ch4Hotspots = [
+    { state: "Uttar Pradesh", lat: 26.8467, lng: 80.9462, CH4: "14.9%" },
+    { state: "Rajasthan", lat: 27.0238, lng: 74.2179, CH4: "9.1%" },
+    { state: "Madhya Pradesh", lat: 22.9734, lng: 78.6569, CH4: "8.5%" }
+];
+
+const ch4Icon = L.icon({
+    iconUrl: 'Screenshot_2024-09-19_143359-removebg-preview.png',  // Update with the correct path if available
+    iconSize: [38, 38],
+    iconAnchor: [22, 94],
+    popupAnchor: [-3, -76]
+});
+
+ch4Hotspots.forEach(function(hotspot) {
+    const popupContent = `
+        <div>
+            <h3>${hotspot.state}</h3>
+            <p>CH₄ Emissions: ${hotspot.CH4}</p>
+            <p>Note: Methane is a potent greenhouse gas and contributes to global warming.</p>
+        </div>`;
+    
+    L.marker([hotspot.lat, hotspot.lng], { icon: ch4Icon })
+        .addTo(map)
+        .bindPopup(popupContent);
+});
+// const map = L.map('map').setView([23.5937, 78.9629], 5);  // Centered over India
+// L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+//     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+// }).addTo(map);
+
+
+
+    </script>
+
+
+    <style>
+        /* General styles for body */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        
+        
+
+        /* Button styling for each gas */
+        .no2-button {
+            background-color: #d5d953; /* Red */
+            padding: 15px 60px;
+            font-size: 30px;
+            margin: 10px;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .so2-button {
+            background-color: #28cf19; /* Purple */
+            padding: 15px 60px;
+            font-size: 30px;
+            margin: 10px;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .ch4-button {
+            background-color: #ff9800; /* Orange */
+            padding: 15px 60px;
+            font-size: 30px;
+            margin: 10px;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .co2-button {
+            background-color: #e95126; /* Green */
+            padding: 15px 60px;
+            font-size: 30px;
+            margin: 10px;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+       
+
+        /* Popup container */
+        .popup {
+            position: fixed;
+            top: 285px;
+            left: 60px;
+            width: 15%;
+            height: 13%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000; /* Increased z-index to bring popup to the front */
+        }
+       
+
+
+        .popup-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 75%; /* Width set to 15% */
+            max-width: 400px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none;
+        }
+
+        /* Close button */
+        .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Title styling */
+        #popup-title {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        /* Text styling */
+        #popup-text {
+            font-size: 14px;
+        }
+
+        
+        
+        
+
+    </style>
+
+
+    <!-- Popup container -->
+    <div id="popup" class="popup hidden" onclick="closePopup()">
+        <div class="popup-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closePopup()">&times;</span>
+            <h3 id="popup-title">Title</h3>
+            <p id="popup-text">Description goes here.</p>
+        </div>
+    </div>
+
+    <!-- Buttons for gases -->
+    <button class="no2-button" onclick="showPopup('NO<sub>2</sub>', 'Found in urban areas with vehicle emissions. Harmful above 100 ppb.')">NO<sub>2</sub> </button>
+    <button class="so2-button" onclick="showPopup('SO<sub>2</sub>', 'Emitted by burning fossil fuels. Dangerous above 75 ppb.')">SO<sub>2</sub> </button>
+    <button class="ch4-button" onclick="showPopup('CH<sub>4</sub>', 'Major component of natural gas. Harmful in large quantities as a greenhouse gas.')">CH<sub>4</sub> </button>
+    <button class="co2-button" onclick="showPopup('CO<sub>2</sub>', 'Present in industrial areas. Harmful above 400 ppm.')">CO<sub>2</sub> </button>
+
+    <script>
+        // Function to show the popup
+        function showPopup(title, text) {
+            document.getElementById('popup-title').innerHTML = title;
+            document.getElementById('popup-text').innerHTML = text;
+            document.getElementById('popup').classList.remove('hidden');
+        }
+
+        // Function to close the popup
+        function closePopup() {
+            document.getElementById('popup').classList.add('hidden');
+        }
+
+        // Close popup when clicking outside of popup content
+        document.getElementById('popup').addEventListener('click', function (event) {
+            if (event.target === this) {
+                closePopup();
+            }
+        });
+    </script>
+
+</body>
+</html>
+
+
+
+
+   
+           
+        
+
+
+    
+
+    
